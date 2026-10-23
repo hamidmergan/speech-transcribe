@@ -34,7 +34,7 @@ System requirements: ffmpeg and ffprobe.
 - [x] 2 API and CLI: `transcribe(...) -> Transcript`, CLI with `--format`, `-o`, `--language`, `--resume`
 - [x] 3 Tests with a fake server: splitting, offsets across pieces, resume, VTT and SRT, CLI, missing configuration
 - [x] 4 README, CHANGELOG 0.1.0, local smoke test with a real speech-to-text model
-- [ ] 5 English sweep, acceptance greps
+- [x] 5 English sweep, acceptance greps
 - [ ] 6 Web UI (`speech-transcribe serve`) and Docker
 
 ## Open
