@@ -200,3 +200,33 @@ def test_resume_finishes_the_interrupted_run(server, copy_media):
 
     assert len(server.requests) == sent + 1
     assert audio.with_suffix(".txt").exists()
+
+
+# --- nothing escapes as a traceback -----------------------------------------
+
+
+@needs_ffmpeg
+def test_an_unexpected_error_is_printed_as_a_message(server, copy_media, capsys, monkeypatch):
+    """A bare ValueError out of the pipeline used to reach the terminal as a traceback."""
+    from speech_transcribe import pipeline
+
+    def boom(path):
+        raise ValueError("could not convert string to float: 'N/A'")
+
+    monkeypatch.setattr(pipeline, "get_audio_duration", boom)
+    code = main(_args(server, "--stdout", str(copy_media("short"))))
+    assert code == 1
+    captured = capsys.readouterr()
+    assert "Error for" in captured.err
+    assert "Traceback" not in captured.err and "Traceback" not in captured.out
+
+
+@needs_ffmpeg
+def test_an_unwritable_output_is_reported(server, copy_media, capsys, tmp_path):
+    """-o pointing at an existing folder used to crash after the model was paid for."""
+    blocked = tmp_path / "blocked"
+    blocked.mkdir()
+    (blocked / "short.txt").mkdir()
+    code = main(_args(server, "-o", str(blocked / "short.txt"), str(copy_media("short"))))
+    assert code == 1
+    assert "Could not write" in capsys.readouterr().err

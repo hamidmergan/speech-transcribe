@@ -75,3 +75,58 @@ def test_split_audio_writes_one_mp3_per_piece(media, tmp_path):
     for path, _ in chunks:
         assert path.endswith(".mp3")
         assert open(path, "rb").read(2) != b""
+
+
+# --- what ffprobe sends back ------------------------------------------------
+
+
+def _fake_probe(monkeypatch, stdout):
+    """Answer every ffprobe call with the given JSON."""
+    from speech_transcribe import media
+
+    class _Done:
+        returncode = 0
+        stderr = ""
+
+        def __init__(self, out):
+            self.stdout = out
+
+    monkeypatch.setattr(media.subprocess, "run", lambda *a, **k: _Done(stdout))
+
+
+def test_an_unreadable_stream_duration_is_a_media_error(monkeypatch):
+    """ffprobe writes "N/A" for a stream it cannot measure."""
+    from speech_transcribe.errors import MediaError
+    from speech_transcribe.media import get_audio_duration
+
+    _fake_probe(monkeypatch, '{"streams": [{"duration": "N/A"}], "format": {}}')
+    with pytest.raises(MediaError, match="unreadable duration"):
+        get_audio_duration("talk.mp4")
+
+
+def test_an_unreadable_container_duration_is_a_media_error(monkeypatch):
+    from speech_transcribe.errors import MediaError
+    from speech_transcribe.media import get_audio_duration
+
+    _fake_probe(monkeypatch, '{"streams": [], "format": {"duration": "N/A"}}')
+    with pytest.raises(MediaError, match="unreadable duration"):
+        get_audio_duration("talk.mp4")
+
+
+def test_a_readable_duration_still_comes_through(monkeypatch):
+    from speech_transcribe.media import get_audio_duration
+
+    _fake_probe(monkeypatch, '{"streams": [{"duration": "12.5"}], "format": {}}')
+    assert get_audio_duration("talk.mp4") == 12.5
+
+
+def test_a_missing_ffprobe_is_a_media_error(monkeypatch):
+    from speech_transcribe import media
+    from speech_transcribe.errors import MediaError
+
+    def boom(*args, **kwargs):
+        raise FileNotFoundError("ffprobe")
+
+    monkeypatch.setattr(media.subprocess, "run", boom)
+    with pytest.raises(MediaError, match="could not be started"):
+        media.get_audio_duration("talk.mp4")

@@ -241,6 +241,27 @@ def test_a_server_error_lands_in_the_job_error(client, copy_media, server):
     assert job["error"]
 
 
+@needs_ffmpeg
+def test_an_unexpected_error_ends_the_job_and_frees_the_page(
+    client, copy_media, monkeypatch
+):
+    """A job left running answered 409 to every later upload until a restart."""
+    from speech_transcribe import pipeline
+
+    def boom(path):
+        raise ValueError("could not convert string to float: 'N/A'")
+
+    monkeypatch.setattr(pipeline, "get_audio_duration", boom)
+    _upload(client, copy_media("short"))
+    job = _wait(client)
+    assert job["state"] == "error"
+    assert job["error"]
+
+    monkeypatch.undo()
+    assert _upload(client, copy_media("short")).status_code == 200
+    assert _wait(client)["state"] == "done"
+
+
 def test_an_unknown_setting_is_refused(tmp_path):
     from speech_transcribe.errors import ConfigError
 

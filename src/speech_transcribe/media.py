@@ -16,11 +16,27 @@ _SILENCE_MIN_DURATION = 0.3  # minimum silence duration (s)
 _SPLIT_SEARCH_WINDOW = 60  # search window around each target split point (s)
 
 
+def _run(cmd, what: str, text: bool = False):
+    """Run an ffmpeg or ffprobe command. A missing program becomes a MediaError."""
+    try:
+        return subprocess.run(cmd, capture_output=True, text=text)
+    except OSError as e:
+        raise MediaError(f"{what} could not be started: {e}") from e
+
+
+def _seconds(value, where: str) -> float:
+    """ffprobe writes "N/A" for a stream it cannot measure, that is not a number."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        raise MediaError(f"ffprobe reported an unreadable duration in {where}: {value!r}")
+
+
 def get_audio_duration(file_path: str) -> float:
     """Return audio or video duration in seconds via ffprobe."""
-    result = subprocess.run(
+    result = _run(
         ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", str(file_path)],
-        capture_output=True,
+        "ffprobe",
         text=True,
     )
     if result.returncode != 0:
@@ -29,26 +45,30 @@ def get_audio_duration(file_path: str) -> float:
         data = json.loads(result.stdout)
     except json.JSONDecodeError:
         raise MediaError("ffprobe returned no readable output")
-    for stream in data.get("streams", []):
-        duration = stream.get("duration")
+    if not isinstance(data, dict):
+        raise MediaError("ffprobe returned no readable output")
+    streams = data.get("streams")
+    for stream in streams if isinstance(streams, list) else []:
+        duration = stream.get("duration") if isinstance(stream, dict) else None
         if duration:
-            return float(duration)
-    fmt_duration = data.get("format", {}).get("duration")
+            return _seconds(duration, "the stream")
+    fmt = data.get("format")
+    fmt_duration = fmt.get("duration") if isinstance(fmt, dict) else None
     if fmt_duration:
-        return float(fmt_duration)
+        return _seconds(fmt_duration, "the container")
     raise MediaError("Could not determine audio duration via ffprobe")
 
 
 def find_silence_starts(file_path: str) -> List[float]:
     """Find the speech pauses via ffmpeg, without decoding the video track."""
-    result = subprocess.run(
+    result = _run(
         [
             "ffmpeg", "-i", str(file_path),
             "-vn",
             "-af", f"silencedetect=noise={_SILENCE_NOISE_DB}dB:d={_SILENCE_MIN_DURATION}",
             "-f", "null", "-",
         ],
-        capture_output=True,
+        "ffmpeg",
         text=True,
     )
     output = result.stderr + result.stdout
@@ -90,7 +110,7 @@ def split_audio(file_path: str, split_points: List[float], tmpdir: str) -> List[
             "-ar", str(CHUNK_REENCODE_SAMPLE_RATE_HZ),
             "-y", chunk_path,
         ]
-        result = subprocess.run(cmd, capture_output=True)
+        result = _run(cmd, "ffmpeg")
         if result.returncode != 0:
             raise MediaError(f"ffmpeg split failed for chunk {i}: {result.stderr[:200]!r}")
         chunks.append((chunk_path, start))

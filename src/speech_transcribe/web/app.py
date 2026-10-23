@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 
 from ..config import CHUNK_SECONDS, MAX_DURATION_MIN, MAX_FILE_MB, resolve
 from ..core import EXTENSIONS, FORMATS, Transcript, normalize_format, transcribe
-from ..errors import ConfigError, TranscribeError
+from ..errors import ConfigError
 from ..validation import EXTENSIONS as MEDIA_EXTENSIONS
 
 STATIC = Path(__file__).parent / "static"
@@ -142,7 +142,9 @@ def create_app(allowed_hosts: Optional[Sequence[str]] = None, **options) -> Fast
             result = transcribe(
                 path, language=language or None, fmt=fmt, on_progress=progress, **chosen
             )
-        except TranscribeError as exc:
+        except Exception as exc:
+            # Every error ends the job. A job left running would answer 409 to
+            # every later upload until the server is restarted.
             with lock:
                 job.state, job.error = "error", str(exc)
             return

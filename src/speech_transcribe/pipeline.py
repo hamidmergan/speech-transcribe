@@ -88,7 +88,10 @@ def transcribe_media(
         return _transcribe(str(file_path), media_path, settings, resume, on_progress, client)
     finally:
         if normalized:
-            os.unlink(normalized)
+            try:
+                os.unlink(normalized)
+            except OSError as e:  # the result is already there, a leftover temp file must not hide it
+                logger.warning("Temporary MP4 copy could not be removed: %s", e)
 
 
 def _transcribe(

@@ -96,22 +96,31 @@ def is_fragmented_mp4_reader(read) -> bool:
 
 def remux_to_progressive(src: str, dst: str) -> None:
     """Losslessly remux src into a progressive faststart MP4 at dst (no re-encode)."""
-    result = subprocess.run(
-        ["ffmpeg", "-v", "error", "-y", "-i", str(src), "-c", "copy", "-movflags", "+faststart", str(dst)],
-        capture_output=True,
-    )
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-v", "error", "-y", "-i", str(src), "-c", "copy", "-movflags", "+faststart", str(dst)],
+            capture_output=True,
+        )
+    except OSError as e:
+        raise MediaError(f"ffmpeg could not be started: {e}") from e
     if result.returncode != 0:
         err = result.stderr.decode("utf-8", "replace")[:300]
         raise MediaError(f"ffmpeg remux failed: {err}")
 
 
 def _remux_to_temp(path: str) -> str:
-    fd, out = tempfile.mkstemp(suffix=".mp4")
-    os.close(fd)
+    try:
+        fd, out = tempfile.mkstemp(suffix=".mp4")
+        os.close(fd)
+    except OSError as e:
+        raise MediaError(f"No temporary file could be created for the MP4 repair: {e}") from e
     try:
         remux_to_progressive(path, out)
     except Exception:
-        os.unlink(out)
+        try:
+            os.unlink(out)
+        except OSError:
+            pass
         raise
     return out
 

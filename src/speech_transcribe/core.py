@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from . import config
-from .errors import ConfigError
+from .errors import ConfigError, TranscribeError
 from .pipeline import ProgressFn, transcribe_media
 from .subtitles import segments_to_srt, segments_to_vtt, split_long_segments
 from .tools import check_tools
@@ -102,7 +102,41 @@ def transcribe(
     language is an optional ISO 639-1 code (for example "en"). Without it the
     server detects the language. fmt picks what str(transcript) and
     transcript.render() return: txt, vtt, srt or json.
+
+    Every failure leaves this function as a TranscribeError, so a caller never
+    has to guard against the error types of ffmpeg, the file system or the
+    HTTP library.
     """
+    try:
+        return _transcribe(
+            path, language, fmt, base_url, model, api_key,
+            resume=resume, on_progress=on_progress, chunk_seconds=chunk_seconds,
+            max_file_mb=max_file_mb, max_duration_min=max_duration_min,
+            concurrency=concurrency, timeout=timeout, work_dir=work_dir,
+        )
+    except TranscribeError:
+        raise
+    except Exception as exc:  # the contract above holds for every error
+        raise TranscribeError(f"Transcription of {path} failed: {exc}") from exc
+
+
+def _transcribe(
+    path,
+    language,
+    fmt,
+    base_url,
+    model,
+    api_key,
+    *,
+    resume,
+    on_progress,
+    chunk_seconds,
+    max_file_mb,
+    max_duration_min,
+    concurrency,
+    timeout,
+    work_dir,
+) -> Transcript:
     fmt = normalize_format(fmt)
     settings = config.resolve(
         base_url=base_url,

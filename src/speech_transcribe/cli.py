@@ -172,6 +172,10 @@ def main(argv: Optional[List[str]] = None) -> int:
             if getattr(exc, "resumable", False):
                 print("Finished chunks were kept. Run again with --resume to continue.", file=sys.stderr)
             continue
+        except Exception as exc:  # no raw traceback ever reaches the terminal
+            failed += 1
+            print(f"Error for {key}: {exc}", file=sys.stderr)
+            continue
 
         result = transcript.render(fmt, short_cues=args.short_cues)
         if args.stdout:
@@ -183,8 +187,14 @@ def main(argv: Optional[List[str]] = None) -> int:
             continue
         # an explicitly named output file is overwritten, generated names never are
         target = out if (out is not None and not many) else _free(targets[key])
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(result if result.endswith("\n") else result + "\n", encoding="utf-8")
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(result if result.endswith("\n") else result + "\n", encoding="utf-8")
+        except OSError as exc:
+            # the transcription is already paid for, so say what went wrong
+            failed += 1
+            print(f"Could not write {target}: {exc}", file=sys.stderr)
+            continue
         if not args.quiet:
             print(f"Wrote {target}", file=sys.stderr)
 
