@@ -83,6 +83,16 @@ speech-transcribe lecture.mp4 --resume --base-url ... --model ...
 
 A run that finishes completely empties the work folder again.
 
+The work folder is `~/.cache/speech-transcribe` (or `SPEECH_TRANSCRIBE_WORK_DIR`, or
+`$XDG_CACHE_HOME/speech-transcribe`). One subfolder per recording holds one small JSON file per
+finished piece, with the recognised text, the segments and the language of that piece. The folder
+name is a hash of the file content, the server address, the model, the language and the piece
+length, so a changed setting never reuses an old result.
+
+Pieces that nobody picks up again expire after 7 days. Every later run deletes the folders that
+are past that age, and an entry older than 7 days is never reused. To clear everything at once,
+delete the work folder.
+
 ### Web UI
 
 ```bash
@@ -146,7 +156,22 @@ transcript.to_srt()        # SRT
 transcript.to_json()       # text, language, duration and segments
 ```
 
-`to_vtt(short_cues=True)` and `to_srt(short_cues=True)` split long segments into readable cues.
+`to_vtt(short_cues=True)`, `to_srt(short_cues=True)` and `to_json(short_cues=True)` split long
+segments into readable cues.
+
+Every error leaves `transcribe()` as a `TranscribeError`, so one `except` is enough:
+
+```python
+from speech_transcribe import TranscribeError, transcribe
+
+try:
+    transcript = transcribe("talk.mp4", base_url="...", model="...")
+except TranscribeError as error:
+    print(error)
+```
+
+The subclasses are `ConfigError`, `MissingToolError`, `UnsupportedFileError`, `LimitError`
+(with `AudioTooLongError`), `MediaError` and `ModelError`.
 
 Long recordings with progress and resume:
 
@@ -187,6 +212,10 @@ Quality depends on the chosen model. A small model may misread names, technical 
 Timestamps are only as good as the server's answer. A server that cannot deliver `verbose_json` returns one segment covering the whole piece, so `vtt` and `srt` stay coarse.
 
 Speakers are not separated. There is no diarization and no speaker labels.
+
+If a server answers a piece with an empty result, that part of the recording is missing from the
+transcript. The run says how many pieces came back empty, on stderr and on the page. Running again
+with `--resume` sends the missing pieces once more.
 
 ## Running Tests
 

@@ -5,6 +5,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/) and the proje
 
 ## [Unreleased]
 
+### Added
+
+- Finished pieces expire after 7 days, and every run deletes the folders that are past that age
+- The number of pieces a server answered with nothing is reported on stderr and on the page
+- `to_json(short_cues=True)` and `--short-cues --format json` now split long segments as well
+- The MP4 helpers `is_fragmented_mp4`, `is_fragmented_mp4_reader`, `normalize_if_fragmented` and `normalize_for_playback` are exported
+- `.dockerignore`, so the build context carries neither the virtualenv nor the git history
+
+### Changed
+
+- Every error leaves the public API as a `TranscribeError`, so neither the command line nor the web page can end in a raw traceback
+- The cache is written only when the caller passes a cache key, and the key now covers the server address as well
+- `-o` with a single input writes into the folder when it names one, instead of failing after the transcription
+- WebVTT cue text is escaped, and a blank line inside a segment no longer splits a cue
+- A segment that reaches past its piece is clamped to the cut, so pieces never overlap
+- The too-long message names the recording length with one decimal
+
 ## [0.1.0] - 2026-10-23
 
 ### Added
