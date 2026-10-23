@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "speech-transcribe"
+version = "0.1.0"
+description = "Transcribe audio and video into text, VTT, SRT or JSON with timestamps through any OpenAI-compatible speech-to-text server"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Hamid Mergan" }]
+keywords = ["transcription", "speech-to-text", "whisper", "subtitles", "vtt", "srt", "ffmpeg", "openai", "ollama"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Text Processing",
+    "Typing :: Typed",
+]
+dependencies = [
+    "openai>=1.30",
+    "filetype>=1.2",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+dev = ["pytest>=7", "build", "twine"]
+
+[project.urls]
+Homepage = "https://github.com/hamidmergan/speech-transcribe"
+Source = "https://github.com/hamidmergan/speech-transcribe"
+Issues = "https://github.com/hamidmergan/speech-transcribe/issues"
+Changelog = "https://github.com/hamidmergan/speech-transcribe/blob/main/CHANGELOG.md"
+
+[project.scripts]
+speech-transcribe = "speech_transcribe.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+speech_transcribe = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
