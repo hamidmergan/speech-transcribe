@@ -1,0 +1,14 @@
+.git
+.venv
+.pytest_cache
+__pycache__
+*.egg-info
+dist
+build
+tests
+PLAN.md
+private/
+.env
+# Every other hidden folder as well, for example local tool or editor settings.
+# COPY . . would otherwise carry them into the published image.
+.*/
