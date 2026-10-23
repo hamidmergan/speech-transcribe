@@ -32,7 +32,7 @@ System requirements: ffmpeg and ffprobe.
 - [x] 0 Scaffold: repo, LICENSE (MIT), pyproject, package and tests folders, CI, PLAN.md, README skeleton, ffmpeg and ffprobe check
 - [x] 1 Core: splitting, transcription per piece, offsets, merging, VTT/SRT output, MP4 repair, `config.py`, `errors.py`
 - [x] 2 API and CLI: `transcribe(...) -> Transcript`, CLI with `--format`, `-o`, `--language`, `--resume`
-- [ ] 3 Tests with a fake server: splitting, offsets across pieces, resume, VTT and SRT, CLI, missing configuration
+- [x] 3 Tests with a fake server: splitting, offsets across pieces, resume, VTT and SRT, CLI, missing configuration
 - [ ] 4 README, CHANGELOG 0.1.0, local smoke test with a real speech-to-text model
 - [ ] 5 English sweep, acceptance greps
 - [ ] 6 Web UI (`speech-transcribe serve`) and Docker

@@ -14,14 +14,37 @@ logger = logging.getLogger(__name__)
 RETRY_BACKOFFS = [5, 15, 60, 180, 300, 420, 600]
 
 
+CONNECT_TIMEOUT_SECONDS = 10.0
+
+
+def _timeout(read_seconds: float):
+    """A short connect timeout with a long read timeout, uploads may take a while.
+
+    The HTTP library ships with the openai package and has changed its name
+    between major versions, so fall back to a plain read timeout if neither
+    spelling is importable.
+    """
+    for module_name in ("httpx", "httpx2"):
+        try:
+            module = __import__(module_name)
+        except ImportError:
+            continue
+        return module.Timeout(
+            connect=CONNECT_TIMEOUT_SECONDS,
+            read=read_seconds,
+            write=CONNECT_TIMEOUT_SECONDS,
+            pool=CONNECT_TIMEOUT_SECONDS,
+        )
+    return read_seconds
+
+
 def make_client(settings: Settings):
-    import httpx
     from openai import OpenAI
 
     return OpenAI(
         base_url=settings.base_url,
         api_key=settings.api_key,
-        timeout=httpx.Timeout(connect=10.0, read=settings.timeout, write=10.0, pool=10.0),
+        timeout=_timeout(settings.timeout),
     )
 
 
