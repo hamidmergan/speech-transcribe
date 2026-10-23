@@ -249,9 +249,21 @@ def test_a_recording_over_the_limit_is_refused(server, tmp_path, recording, four
     settings = _settings(server, tmp_path, max_duration_min=100)
     with pytest.raises(AudioTooLongError) as e:
         pipeline.transcribe_media(recording, settings)
-    assert "117 minutes" in str(e.value)
+    assert "116.7 minutes" in str(e.value)
     assert "100 minutes" in str(e.value)
     assert server.requests == []
+
+
+def test_a_recording_just_over_the_limit_does_not_read_as_the_limit(
+    server, tmp_path, recording, four_chunks, monkeypatch
+):
+    """100 min 30 s must not be reported as "too long (100 minutes), the maximum is 100"."""
+    monkeypatch.setattr(pipeline, "get_audio_duration", lambda p: 6030.0)
+    settings = _settings(server, tmp_path, max_duration_min=100)
+    with pytest.raises(AudioTooLongError) as e:
+        pipeline.transcribe_media(recording, settings)
+    assert "100.5 minutes" in str(e.value)
+    assert "The maximum is 100 minutes" in str(e.value)
 
 
 def test_a_raised_limit_allows_the_long_recording(server, tmp_path, recording, four_chunks, monkeypatch):

@@ -21,7 +21,7 @@ class AudioTooLongError(LimitError):
         self.duration_sec = duration_sec
         self.max_sec = max_sec
         super().__init__(
-            f"Recording too long ({duration_sec / 60:.0f} minutes). "
+            f"Recording too long ({duration_sec / 60:.1f} minutes). "
             f"The maximum is {max_sec // 60} minutes. "
             "Raise max_duration_min (--max-duration-min) to allow longer recordings."
         )
