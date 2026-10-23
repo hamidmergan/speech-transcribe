@@ -18,11 +18,19 @@ If you run your own model, your recordings stay on your own network. Nothing lea
 
 ## Installation
 
+speech-transcribe is installed from GitHub:
+
 ```bash
-pip install speech-transcribe
+pip install git+https://github.com/hamidmergan/speech-transcribe.git
 ```
 
-Alternatively, you can install it from the source:
+With the web UI:
+
+```bash
+pip install "speech-transcribe[ui] @ git+https://github.com/hamidmergan/speech-transcribe.git"
+```
+
+Alternatively, you can install it from a local copy (`pip install ".[ui]"` for the web UI):
 
 ```bash
 git clone https://github.com/hamidmergan/speech-transcribe.git
@@ -96,7 +104,7 @@ delete the work folder.
 ### Web UI
 
 ```bash
-pip install "speech-transcribe[ui]"
+pip install "speech-transcribe[ui] @ git+https://github.com/hamidmergan/speech-transcribe.git"
 speech-transcribe serve --base-url http://localhost:11434/v1 --model your-speech-model
 ```
 

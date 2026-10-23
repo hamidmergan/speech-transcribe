@@ -9,7 +9,8 @@ from .core import FORMATS, normalize_format, output_name, transcribe
 from .errors import ConfigError, MissingToolError, TranscribeError
 
 LOOPBACK = ("127.0.0.1", "localhost", "::1")
-UI_HINT = 'The web page needs extra packages: pip install "speech-transcribe[ui]"'
+UI_HINT = ('The web page needs extra packages: pip install '
+           '"speech-transcribe[ui] @ git+https://github.com/hamidmergan/speech-transcribe.git"')
 NO_LOGIN = "Warning: the page has no login. Anyone who can reach this port can use it."
 
 
