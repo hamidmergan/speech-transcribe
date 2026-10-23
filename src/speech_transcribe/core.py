@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from . import config
+from .cache import cache_key
 from .errors import ConfigError, TranscribeError
 from .pipeline import ProgressFn, transcribe_media
 from .subtitles import segments_to_srt, segments_to_vtt, split_long_segments
@@ -152,7 +153,15 @@ def _transcribe(
     )
     check_tools()
     file_path = check_file(path, settings.max_file_mb)
-    raw = transcribe_media(str(file_path), settings, resume=resume, on_progress=on_progress)
+    raw = transcribe_media(
+        str(file_path),
+        settings,
+        resume=resume,
+        on_progress=on_progress,
+        cache_key=cache_key(
+            file_path, settings.base_url, settings.model, settings.language, settings.chunk_seconds
+        ),
+    )
     return Transcript(
         text=raw.text,
         segments=raw.segments,

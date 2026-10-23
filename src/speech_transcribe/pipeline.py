@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Tuple
 
 from . import client as stt
-from .cache import ChunkCache, cache_key
+from .cache import ChunkCache, NoCache, sweep
 from .config import Settings
 from .errors import AudioTooLongError, ModelError, TranscribeError
 from .media import compute_split_points, find_silence_starts, get_audio_duration, split_audio
@@ -76,16 +76,18 @@ def transcribe_media(
     resume: bool = False,
     on_progress: ProgressFn = None,
     client=None,
+    cache_key: Optional[str] = None,
 ) -> RawResult:
     """Transcribe a recording with timestamps, splitting it when it is longer than one chunk.
 
-    Finished chunks are stored in settings.work_dir. With resume=True a later run
-    takes them from there and only sends the missing chunks.
+    Without a cache_key nothing is written to disk. With one, every finished
+    chunk is stored in settings.work_dir under that key, and with resume=True a
+    later run takes them from there and only sends the missing chunks.
     """
     normalized = normalize_for_playback(str(file_path))
     media_path = normalized or str(file_path)
     try:
-        return _transcribe(str(file_path), media_path, settings, resume, on_progress, client)
+        return _transcribe(media_path, settings, resume, on_progress, client, cache_key)
     finally:
         if normalized:
             try:
@@ -95,12 +97,12 @@ def transcribe_media(
 
 
 def _transcribe(
-    original: str,
     media_path: str,
     settings: Settings,
     resume: bool,
     on_progress: ProgressFn,
     client,
+    key: Optional[str],
 ) -> RawResult:
     duration = get_audio_duration(media_path)
     _reject_if_too_long(duration, settings)
@@ -118,12 +120,14 @@ def _transcribe(
     split_points = compute_split_points(duration, silence_starts, settings.chunk_seconds)
     ends = list(split_points) + [duration]
 
-    cache = ChunkCache(
-        settings.work_dir,
-        cache_key(original, settings.model, settings.language, settings.chunk_seconds),
-    )
-    if not resume:
-        cache.clear()
+    if key:
+        # Entries nobody resumed in time go before this run adds its own.
+        sweep(settings.work_dir)
+        cache = ChunkCache(settings.work_dir, key)
+        if not resume:
+            cache.clear()
+    else:
+        cache = NoCache()
 
     def _transcribe_or_cached(path: str, idx: int, start: float, total: int):
         hit = cache.get(idx)

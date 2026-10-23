@@ -1,9 +1,12 @@
 """Chunked transcription against the fake server: offsets, resume, progress, limits."""
 
+import os
+import time
 from pathlib import Path
 
 import pytest
 
+from speech_transcribe import cache as cache_module
 from speech_transcribe import config, pipeline
 from speech_transcribe.cache import ChunkCache, cache_key
 from speech_transcribe.errors import AudioTooLongError, ModelError
@@ -51,8 +54,17 @@ def _settings(server, tmp_path, **over):
     return config.resolve(**values)
 
 
+def _key(settings, recording) -> str:
+    return cache_key(
+        recording, settings.base_url, settings.model, settings.language, settings.chunk_seconds
+    )
+
+
 def _run(server, tmp_path, recording, **kwargs):
-    return pipeline.transcribe_media(recording, _settings(server, tmp_path), **kwargs)
+    """A run with a cache key, the way the public transcribe() calls the pipeline."""
+    settings = _settings(server, tmp_path)
+    kwargs.setdefault("cache_key", _key(settings, recording))
+    return pipeline.transcribe_media(recording, settings, **kwargs)
 
 
 # --- offsets and merging ----------------------------------------------------
@@ -147,10 +159,7 @@ def test_a_broken_progress_callback_does_not_stop_the_run(server, tmp_path, reco
 
 def _cache(server, tmp_path, recording) -> ChunkCache:
     settings = _settings(server, tmp_path)
-    return ChunkCache(
-        settings.work_dir,
-        cache_key(recording, settings.model, settings.language, settings.chunk_seconds),
-    )
+    return ChunkCache(settings.work_dir, _key(settings, recording))
 
 
 def test_a_failed_chunk_keeps_the_finished_ones(server, tmp_path, recording, four_chunks):
@@ -185,6 +194,12 @@ def test_rerun_with_resume_only_sends_the_missing_chunk(
     assert result.resumed == CHUNKS - 1
     assert len(result.segments) == CHUNKS * 2
     assert [seg["start"] for seg in result.segments][:4] == [1.0, 5.0, 541.0, 545.0]
+    # the cached texts have to land in recording order, not in the order they came back
+    assert result.text == (
+        "request 1 second request 2 second request 5 second request 4 second"
+    )
+    # a resumed run that succeeds empties the work folder as well
+    assert _cache(server, tmp_path, recording).count() == 0
 
 
 def test_a_successful_run_empties_the_work_folder(server, tmp_path, recording, four_chunks):
@@ -210,9 +225,85 @@ def test_a_changed_setting_does_not_reuse_old_chunks(server, tmp_path, recording
     first = _cache(server, tmp_path, recording).dir
     other = ChunkCache(
         _settings(server, tmp_path).work_dir,
-        cache_key(recording, "other-model", None, CHUNK_SECONDS),
+        cache_key(recording, server.base_url, "other-model", None, CHUNK_SECONDS),
     )
     assert other.dir != first
+
+
+def test_another_server_does_not_reuse_old_chunks(server, tmp_path, recording):
+    """Two servers may both call their model whisper-1."""
+    mine = cache_key(recording, "http://a/v1", "whisper-1", None, CHUNK_SECONDS)
+    theirs = cache_key(recording, "http://b/v1", "whisper-1", None, CHUNK_SECONDS)
+    assert mine != theirs
+
+
+# --- caching is opt in and does not last for ever ---------------------------
+
+
+def test_no_cache_key_means_no_caching(server, tmp_path, recording, four_chunks):
+    """Without a key the run writes nothing to disk, not even on a failure."""
+    server.fail_on = {3}
+    settings = _settings(server, tmp_path)
+    with pytest.raises(ModelError):
+        pipeline.transcribe_media(recording, settings)
+    assert not list(Path(settings.work_dir).glob("**/chunk_*.json"))
+
+
+def test_a_run_with_a_key_keeps_the_finished_chunks(server, tmp_path, recording, four_chunks):
+    server.fail_on = {3}
+    with pytest.raises(ModelError):
+        _run(server, tmp_path, recording)
+    settings = _settings(server, tmp_path)
+    assert list(Path(settings.work_dir).glob("**/chunk_*.json"))
+
+
+def test_an_old_chunk_is_not_used_again(server, tmp_path, recording, four_chunks):
+    """A cached chunk older than the maximum age counts as absent."""
+    server.fail_on = {3}
+    with pytest.raises(ModelError):
+        _run(server, tmp_path, recording)
+    cache = _cache(server, tmp_path, recording)
+    assert cache.get(0) is not None
+    stale = time.time() - cache_module.MAX_AGE_SECONDS - 60
+    for path in cache.dir.glob("chunk_*.json"):
+        os.utime(path, (stale, stale))
+    assert cache.get(0) is None
+
+
+def test_old_chunk_folders_are_swept_away(server, tmp_path, recording, four_chunks):
+    server.fail_on = {3}
+    with pytest.raises(ModelError):
+        _run(server, tmp_path, recording)
+    settings = _settings(server, tmp_path)
+    stale = time.time() - cache_module.MAX_AGE_SECONDS - 60
+    for path in Path(settings.work_dir).glob("**/chunk_*.json"):
+        os.utime(path, (stale, stale))
+
+    assert cache_module.sweep(settings.work_dir) == 1
+    assert not list(Path(settings.work_dir).glob("**/chunk_*.json"))
+
+
+def test_a_fresh_chunk_folder_survives_the_sweep(server, tmp_path, recording, four_chunks):
+    server.fail_on = {3}
+    with pytest.raises(ModelError):
+        _run(server, tmp_path, recording)
+    settings = _settings(server, tmp_path)
+    assert cache_module.sweep(settings.work_dir) == 0
+    assert list(Path(settings.work_dir).glob("**/chunk_*.json"))
+
+
+def test_the_next_run_sweeps_what_nobody_resumed(server, tmp_path, recording, four_chunks):
+    """An abandoned run must not leave transcript text behind for ever."""
+    settings = _settings(server, tmp_path)
+    abandoned = ChunkCache(settings.work_dir, "0" * 32)
+    abandoned.put(0, [{"start": 0.0, "end": 1.0, "text": "old talk"}], "english", "old talk")
+    stale = time.time() - cache_module.MAX_AGE_SECONDS - 60
+    for path in abandoned.dir.glob("chunk_*.json"):
+        os.utime(path, (stale, stale))
+
+    _run(server, tmp_path, recording)
+
+    assert not abandoned.dir.exists()
 
 
 # --- retry and limits -------------------------------------------------------
