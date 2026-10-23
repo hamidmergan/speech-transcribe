@@ -32,8 +32,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=7"]
-dev = ["pytest>=7", "build", "twine"]
+ui = ["fastapi>=0.100", "uvicorn>=0.23", "python-multipart>=0.0.6"]
+test = ["pytest>=7", "httpx>=0.24", "fastapi>=0.100", "uvicorn>=0.23", "python-multipart>=0.0.6"]
+dev = ["pytest>=7", "httpx>=0.24", "fastapi>=0.100", "uvicorn>=0.23", "python-multipart>=0.0.6", "build", "twine"]
 
 [project.urls]
 Homepage = "https://github.com/hamidmergan/speech-transcribe"
@@ -48,7 +49,7 @@ speech-transcribe = "speech_transcribe.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-speech_transcribe = ["py.typed"]
+speech_transcribe = ["py.typed", "web/static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

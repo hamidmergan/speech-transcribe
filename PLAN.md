@@ -35,8 +35,10 @@ System requirements: ffmpeg and ffprobe.
 - [x] 3 Tests with a fake server: splitting, offsets across pieces, resume, VTT and SRT, CLI, missing configuration
 - [x] 4 README, CHANGELOG 0.1.0, local smoke test with a real speech-to-text model
 - [x] 5 English sweep, acceptance greps
-- [ ] 6 Web UI (`speech-transcribe serve`) and Docker
+- [x] 6 Web UI (`speech-transcribe serve`) and Docker
 
 ## Open
 
-- None yet.
+- The page offers JSON next to text, SRT and VTT, because the library renders it from the same segments.
+- There is no cancel button on the page. A running transcription has to finish or fail.
+- The page keeps one transcription at a time. A second upload while one runs is refused with 409.

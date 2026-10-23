@@ -83,6 +83,44 @@ speech-transcribe lecture.mp4 --resume --base-url ... --model ...
 
 A run that finishes completely empties the work folder again.
 
+### Web UI
+
+```bash
+pip install "speech-transcribe[ui]"
+speech-transcribe serve --base-url http://localhost:11434/v1 --model your-speech-model
+```
+
+Then open http://127.0.0.1:8000. Drop a recording on the page, pick the output format, and watch the parts come in. The transcript appears in an editable field, and the Download button saves it as `<name>.<format>`.
+
+The server address, the model and the API key can also be typed on the page, so `speech-transcribe serve` starts without them. The page listens on this computer only. With `--host 0.0.0.0` it is reachable from your network, but it has no login, so do not expose it to the internet.
+
+### Docker
+
+The container runs the web page. ffmpeg is already in the image, nothing has to be installed on the host.
+
+```bash
+docker compose up
+```
+
+Set the server and the model first, for example in a `.env` file next to `docker-compose.yml`:
+
+```
+SPEECH_TRANSCRIBE_BASE_URL=http://host.docker.internal:11434/v1
+SPEECH_TRANSCRIBE_MODEL=your-speech-model
+```
+
+Without compose:
+
+```bash
+docker build -t speech-transcribe .
+docker run -p 127.0.0.1:8000:8000 \
+  -e SPEECH_TRANSCRIBE_BASE_URL=http://host.docker.internal:11434/v1 \
+  -e SPEECH_TRANSCRIBE_MODEL=your-speech-model \
+  speech-transcribe
+```
+
+Then open http://127.0.0.1:8000. `host.docker.internal` reaches a model server such as Ollama on the same computer (on Linux, add `--add-host=host.docker.internal:host-gateway`). The page has no login, so do not expose the port to the internet. Uploads are kept in a temporary folder and removed when the container stops. Finished parts live in the volume `work`, so an interrupted run can continue after a restart.
+
 ### Python API
 
 ```python

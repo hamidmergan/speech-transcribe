@@ -19,6 +19,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/) and the proje
 - Limits for file size and recording length with clear error messages
 - Command-line tool with output to file, folder or stdout, and progress per piece
 - Python API (`transcribe`, `Transcript`)
+- Web page (`speech-transcribe serve`): drop a recording, pick the format, follow the parts, edit and download the transcript
+- Dockerfile with ffmpeg and a docker-compose.yml, `docker compose up` serves the page on port 8000
 - Works with any OpenAI-compatible server, with or without an API key
 
 [Unreleased]: https://github.com/hamidmergan/speech-transcribe/compare/v0.1.0...HEAD

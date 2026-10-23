@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>speech-transcribe</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>Audio to text</h1>
+    <span id="model" class="muted"></span>
+  </header>
+
+  <main>
+    <section class="card">
+      <p class="intro muted">Transcribe audio and video. Also as subtitles with timestamps.</p>
+
+      <h2>1. Recording</h2>
+      <label id="drop" class="drop">
+        <input type="file" id="file" hidden>
+        <strong>Drop file here or <span class="link">browse</span></strong>
+        <span id="extensions" class="muted"></span>
+      </label>
+      <p id="chosen" class="muted" hidden></p>
+    </section>
+
+    <section class="card">
+      <h2>2. Output format</h2>
+      <p class="muted">TXT is plain text without timestamps. SRT and VTT are subtitle formats: VTT for
+        modern web players, SRT for classic video players. JSON holds the text, the language and every
+        segment with its start and end.</p>
+      <div class="options" id="formats">
+        <label><input type="radio" name="format" value="txt" checked> Text (.txt)</label>
+        <label><input type="radio" name="format" value="srt"> SRT (.srt)</label>
+        <label><input type="radio" name="format" value="vtt"> VTT (.vtt)</label>
+        <label><input type="radio" name="format" value="json"> JSON (.json)</label>
+      </div>
+      <div class="options">
+        <label class="field">Language
+          <input type="text" id="language" list="languages" placeholder="detected by the server">
+          <datalist id="languages">
+            <option value="en"><option value="de"><option value="fr"><option value="es">
+            <option value="it"><option value="nl"><option value="pt"><option value="pl">
+            <option value="tr"><option value="ar">
+          </datalist>
+        </label>
+        <label><input type="checkbox" id="short-cues"> Short subtitle cues</label>
+      </div>
+    </section>
+
+    <section class="card" id="settings-card">
+      <h2>3. Server</h2>
+      <p class="muted">A server with an OpenAI-compatible API and a speech-to-text model. Leave empty to
+        use the settings the server was started with.</p>
+      <div class="options">
+        <label class="field">Address <input type="text" id="base-url" placeholder="http://localhost:11434/v1"></label>
+        <label class="field">Model <input type="text" id="model-field" placeholder="your-speech-model"></label>
+        <label class="field">API key <input type="password" id="api-key" placeholder="optional"></label>
+      </div>
+    </section>
+
+    <section class="card">
+      <button id="start" class="primary" disabled>Start transcription</button>
+      <div id="progress" class="progress" hidden>
+        <div class="bar"><div id="bar"></div></div>
+        <span id="progress-text" class="muted"></span>
+      </div>
+      <p id="error" class="error" hidden></p>
+    </section>
+
+    <section id="result" class="card" hidden>
+      <h2>Transcript ready</h2>
+      <p id="about" class="muted"></p>
+      <textarea id="text" rows="18" spellcheck="false" aria-label="Edit transcript"></textarea>
+      <div class="buttons">
+        <button id="download" class="primary">Download</button>
+        <button id="again">New transcript</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

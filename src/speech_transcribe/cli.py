@@ -7,12 +7,69 @@ from . import __version__
 from .core import FORMATS, normalize_format, output_name, transcribe
 from .errors import ConfigError, MissingToolError, TranscribeError
 
+LOOPBACK = ("127.0.0.1", "localhost", "::1")
+UI_HINT = 'The web page needs extra packages: pip install "speech-transcribe[ui]"'
+NO_LOGIN = "Warning: the page has no login. Anyone who can reach this port can use it."
+
+
+def _model_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--base-url", help="URL of the OpenAI-compatible server, e.g. http://localhost:11434/v1")
+    p.add_argument("--model", help="Name of the speech-to-text model")
+    p.add_argument("--api-key", help="API key, if the server requires one")
+    p.add_argument("--language", help="Language of the recording as ISO 639-1 code, e.g. en. Default: detected")
+    p.add_argument("--chunk-seconds", type=float, help="Length of one chunk in seconds (default: 540)")
+    p.add_argument("--max-file-mb", type=float, help="Largest accepted file in MB (default: 500)")
+    p.add_argument("--max-duration-min", type=float, help="Longest accepted recording in minutes (default: 100)")
+    p.add_argument("--concurrency", type=int, help="Chunks sent to the server at once (default: 2)")
+    p.add_argument("--timeout", type=float, help="Read timeout per request in seconds (default: 300)")
+    p.add_argument("--work-dir", help="Folder for finished chunks (default: ~/.cache/speech-transcribe)")
+
+
+_OPTION_KEYS = (
+    "base_url", "model", "api_key", "language", "chunk_seconds",
+    "max_file_mb", "max_duration_min", "concurrency", "timeout", "work_dir",
+)
+
+
+def _serve_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(prog="speech-transcribe serve", description="Start the local web page.")
+    p.add_argument("--host", default="127.0.0.1", help="Default: 127.0.0.1 (this computer only)")
+    p.add_argument("--port", type=int, default=8000)
+    _model_args(p)
+    return p
+
+
+def _serve(argv: List[str]) -> int:
+    args = _serve_parser().parse_args(argv)
+    try:
+        import uvicorn
+
+        from .web.app import create_app
+    except ImportError:
+        print(UI_HINT, file=sys.stderr)
+        return 2
+    options = {key: getattr(args, key) for key in _OPTION_KEYS}
+    try:
+        app = create_app(
+            # on loopback, only accept our own host names, so other web pages cannot reach it via DNS rebinding
+            allowed_hosts=list(LOOPBACK) if args.host in LOOPBACK else None,
+            **options,
+        )
+    except TranscribeError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 2
+    if args.host not in LOOPBACK:
+        print(NO_LOGIN, file=sys.stderr)
+    uvicorn.run(app, host=args.host, port=args.port)
+    return 0
+
 
 def _parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="speech-transcribe",
         description="Transcribe audio and video into text, VTT, SRT or JSON with timestamps "
         "through an OpenAI-compatible speech-to-text server.",
+        epilog="Run 'speech-transcribe serve' for the web page.",
     )
     p.add_argument("files", nargs="+", help="Audio or video files (MP3, WAV, M4A, MP4, WEBM, OGG, FLAC, MPEG)")
     p.add_argument("-f", "--format", default="txt", choices=FORMATS, help="Output format (default: txt)")
@@ -23,7 +80,6 @@ def _parser() -> argparse.ArgumentParser:
         "Default: write <name>.<format> next to each input",
     )
     p.add_argument("--stdout", action="store_true", help="Print the result instead of writing files")
-    p.add_argument("--language", help="Language of the recording as ISO 639-1 code, e.g. en. Default: detected")
     p.add_argument(
         "--resume",
         action="store_true",
@@ -34,15 +90,7 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Split long segments into cues of at most 2 lines of 42 characters (vtt, srt)",
     )
-    p.add_argument("--base-url", help="URL of the OpenAI-compatible server, e.g. http://localhost:11434/v1")
-    p.add_argument("--model", help="Name of the speech-to-text model")
-    p.add_argument("--api-key", help="API key, if the server requires one")
-    p.add_argument("--chunk-seconds", type=float, help="Length of one chunk in seconds (default: 540)")
-    p.add_argument("--max-file-mb", type=float, help="Largest accepted file in MB (default: 500)")
-    p.add_argument("--max-duration-min", type=float, help="Longest accepted recording in minutes (default: 100)")
-    p.add_argument("--concurrency", type=int, help="Chunks sent to the server at once (default: 2)")
-    p.add_argument("--timeout", type=float, help="Read timeout per request in seconds (default: 300)")
-    p.add_argument("--work-dir", help="Folder for finished chunks (default: ~/.cache/speech-transcribe)")
+    _model_args(p)
     p.add_argument("-q", "--quiet", action="store_true", help="Do not print progress")
     p.add_argument("--version", action="version", version=f"speech-transcribe {__version__}")
     return p
@@ -70,6 +118,9 @@ def _targets(keys: List[str], fmt: str, out: Optional[Path]) -> dict:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] == "serve":
+        return _serve(argv[1:])
     args = _parser().parse_args(argv)
     fmt = normalize_format(args.format)
     many = len(args.files) > 1

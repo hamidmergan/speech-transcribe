@@ -1,0 +1,29 @@
+services:
+  speech-transcribe:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # Required. A server with an OpenAI-compatible API and a speech-to-text model.
+      # host.docker.internal reaches a server running on the machine that starts the container.
+      SPEECH_TRANSCRIBE_BASE_URL: "${SPEECH_TRANSCRIBE_BASE_URL:-http://host.docker.internal:11434/v1}"
+      SPEECH_TRANSCRIBE_MODEL: "${SPEECH_TRANSCRIBE_MODEL:-your-speech-model}"
+      # Optional. Local servers usually need no key.
+      SPEECH_TRANSCRIBE_API_KEY: "${SPEECH_TRANSCRIBE_API_KEY:-}"
+      # Optional. Language of the recordings as ISO 639-1 code, empty means the server detects it.
+      SPEECH_TRANSCRIBE_LANGUAGE: "${SPEECH_TRANSCRIBE_LANGUAGE:-}"
+      # Optional limits and tuning.
+      SPEECH_TRANSCRIBE_CHUNK_SECONDS: "${SPEECH_TRANSCRIBE_CHUNK_SECONDS:-540}"
+      SPEECH_TRANSCRIBE_MAX_FILE_MB: "${SPEECH_TRANSCRIBE_MAX_FILE_MB:-500}"
+      SPEECH_TRANSCRIBE_MAX_DURATION_MIN: "${SPEECH_TRANSCRIBE_MAX_DURATION_MIN:-100}"
+      SPEECH_TRANSCRIBE_CONCURRENCY: "${SPEECH_TRANSCRIBE_CONCURRENCY:-2}"
+      SPEECH_TRANSCRIBE_TIMEOUT: "${SPEECH_TRANSCRIBE_TIMEOUT:-300}"
+      SPEECH_TRANSCRIBE_WORK_DIR: "/home/app/.cache/speech-transcribe"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Finished chunks survive a restart, so an interrupted run can continue.
+      - work:/home/app/.cache/speech-transcribe
+
+volumes:
+  work:
