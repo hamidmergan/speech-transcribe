@@ -55,11 +55,20 @@ def _report(on_progress: ProgressFn, done: int, total: int) -> None:
         logger.warning("Chunk progress could not be reported: %s", e)
 
 
-def _shift(segments: List[Dict], offset: float) -> List[Dict]:
-    return [
-        {"start": seg["start"] + offset, "end": seg["end"] + offset, "text": seg["text"]}
-        for seg in segments
-    ]
+def _shift(segments: List[Dict], offset: float, limit: Optional[float] = None) -> List[Dict]:
+    """Move a chunk's segments to their place in the recording.
+
+    limit is the end of the chunk. A model that keeps writing past the cut
+    would otherwise overlap the first cue of the next chunk.
+    """
+    shifted = []
+    for seg in segments:
+        start = seg["start"] + offset
+        end = max(seg["end"] + offset, start)
+        if limit is not None:
+            start, end = min(start, limit), min(end, limit)
+        shifted.append({"start": start, "end": end, "text": seg["text"]})
+    return shifted
 
 
 def _with_fallback_segment(result, start: float, end: float):
@@ -114,7 +123,7 @@ def _transcribe(
         segs, lang, text = _with_fallback_segment(
             stt.transcribe_verbose(client, settings, media_path), 0.0, duration
         )
-        return _finish(segs, duration, lang, text, 1, 0)
+        return _finish(_shift(segs, 0.0, duration), duration, lang, text, 1, 0)
 
     logger.info("Audio %.1fs exceeds the chunk length, splitting into chunks", duration)
     silence_starts = find_silence_starts(media_path)
@@ -179,7 +188,7 @@ def _transcribe(
             # A chunk that answers with nothing leaves a silent gap in the transcript.
             empty += 1
             logger.warning("Chunk %d/%d came back empty, that part is missing", i + 1, total)
-        all_segments.extend(_shift(segs, offset))
+        all_segments.extend(_shift(segs, offset, ends[i]))
         if text:
             texts.append(text)
 

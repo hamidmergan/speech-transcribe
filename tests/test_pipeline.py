@@ -404,3 +404,32 @@ def test_an_empty_chunk_is_counted(server, tmp_path, recording, four_chunks):
 
 def test_a_full_run_counts_no_empty_chunk(server, tmp_path, recording, four_chunks):
     assert _run(server, tmp_path, recording).empty_chunks == 0
+
+
+# --- a chunk never reaches past its own cut ---------------------------------
+
+
+def test_a_segment_past_the_cut_is_clamped(server, tmp_path, recording, four_chunks, monkeypatch):
+    """A model that keeps writing past the cut must not overlap the next chunk."""
+    monkeypatch.setattr(
+        pipeline.stt,
+        "transcribe_verbose",
+        lambda client, settings, path: ([{"start": 500.0, "end": 620.0, "text": "over"}], "en", ""),
+    )
+    result = _run(server, tmp_path, recording)
+    ends = [seg["end"] for seg in result.segments]
+    starts = [seg["start"] for seg in result.segments]
+    assert ends == [540.0, 1080.0, 1620.0, 2000.0]
+    assert all(end <= later for end, later in zip(ends, starts[1:]))
+
+
+def test_a_single_chunk_stays_inside_the_recording(
+    server, tmp_path, recording, four_chunks, monkeypatch
+):
+    monkeypatch.setattr(pipeline, "get_audio_duration", lambda p: 60.0)
+    monkeypatch.setattr(
+        pipeline.stt,
+        "transcribe_verbose",
+        lambda client, settings, path: ([{"start": 10.0, "end": 400.0, "text": "over"}], "en", ""),
+    )
+    assert [s["end"] for s in _run(server, tmp_path, recording).segments] == [60.0]

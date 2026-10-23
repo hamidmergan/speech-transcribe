@@ -9,6 +9,12 @@ from .errors import (
     TranscribeError,
     UnsupportedFileError,
 )
+from .mp4 import (
+    is_fragmented_mp4,
+    is_fragmented_mp4_reader,
+    normalize_for_playback,
+    normalize_if_fragmented,
+)
 from .subtitles import segments_to_srt, segments_to_vtt, split_long_segments, vtt_to_segments
 from .tools import check_tools
 
@@ -23,6 +29,10 @@ __all__ = [
     "segments_to_srt",
     "vtt_to_segments",
     "split_long_segments",
+    "is_fragmented_mp4",
+    "is_fragmented_mp4_reader",
+    "normalize_if_fragmented",
+    "normalize_for_playback",
     "TranscribeError",
     "ConfigError",
     "LimitError",

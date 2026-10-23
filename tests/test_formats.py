@@ -195,3 +195,18 @@ def test_a_blank_line_inside_a_segment_does_not_split_the_cue():
     for rendered in (segments_to_srt(segments), segments_to_vtt(segments)):
         assert "line one\nline two" in rendered
         assert len(vtt_to_segments(rendered)) == 2
+
+
+def test_json_honours_short_cues():
+    """--short-cues used to do nothing at all for the json format."""
+    long_text = "word " * 60
+    transcript = Transcript(
+        text=long_text.strip(),
+        segments=[{"start": 0.0, "end": 30.0, "text": long_text.strip()}],
+        format="json",
+    )
+    plain = json.loads(transcript.render("json"))
+    short = json.loads(transcript.render("json", short_cues=True))
+    assert len(plain["segments"]) == 1
+    assert len(short["segments"]) > 1
+    assert short["text"] == plain["text"]

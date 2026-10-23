@@ -54,18 +54,20 @@ class Transcript:
         """SRT. short_cues splits long segments into cues of at most 2 lines of 42 characters."""
         return segments_to_srt(self._cues(short_cues))
 
-    def to_dict(self) -> Dict:
+    def to_dict(self, short_cues: bool = False) -> Dict:
+        """text, language, duration and the segments. short_cues splits long segments."""
         return {
             "text": self.text,
             "language": self.language,
             "duration": self.duration,
             "segments": [
-                {"start": s["start"], "end": s["end"], "text": s["text"]} for s in self.segments
+                {"start": s["start"], "end": s["end"], "text": s["text"]}
+                for s in self._cues(short_cues)
             ],
         }
 
-    def to_json(self) -> str:
-        return json.dumps(self.to_dict(), ensure_ascii=False, indent=2)
+    def to_json(self, short_cues: bool = False) -> str:
+        return json.dumps(self.to_dict(short_cues), ensure_ascii=False, indent=2)
 
     def render(self, fmt: Optional[str] = None, short_cues: bool = False) -> str:
         """The result in the given format, or in the format chosen at transcription."""
@@ -75,7 +77,7 @@ class Transcript:
         if name == "srt":
             return self.to_srt(short_cues)
         if name == "json":
-            return self.to_json()
+            return self.to_json(short_cues)
         return self.to_text()
 
     def __str__(self) -> str:
