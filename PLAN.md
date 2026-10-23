@@ -23,13 +23,15 @@ System requirements: ffmpeg and ffprobe.
 - MP4 files that are fragmented or have their index at the end are remuxed losslessly before probing and splitting.
 - Input files are checked by extension, size and leading bytes (`filetype`).
 - Timestamps are rounded to whole milliseconds once, so a value like 1.9996 s becomes 00:00:02.000 and never 00:00:01.1000.
+- API: `transcribe(path, language=None, fmt="txt", base_url=None, model=None, api_key=None, *, resume=False, on_progress=None, ...)` returns a `Transcript` with `.text`, `.segments`, `.language`, `.duration`, `.to_text()`, `.to_vtt()`, `.to_srt()`, `.to_json()` and `.render()`. `fmt` only picks what `render()` and `str()` return. `text` is accepted as an alias of `txt`.
+- CLI follows doc-extract: one or several files, default output `<name>.<format>` next to the input, `-o` file or folder, `--stdout`, numbered names instead of overwriting. `--short-cues` splits long segments into cues of at most 2 lines of 42 characters. A failed chunk prints a hint to run again with `--resume`.
 - Not carried: translation to English (the transcription page only offers transcription), the raw text/SRT/VTT server formats and their merge helpers (replaced by rendering from segments), the AI notice in VTT files, and the transcript-to-search-chunk offset index (it belongs to a search feature, not to transcription).
 
 ## Checklist
 
 - [x] 0 Scaffold: repo, LICENSE (MIT), pyproject, package and tests folders, CI, PLAN.md, README skeleton, ffmpeg and ffprobe check
 - [x] 1 Core: splitting, transcription per piece, offsets, merging, VTT/SRT output, MP4 repair, `config.py`, `errors.py`
-- [ ] 2 API and CLI: `transcribe(...) -> Transcript`, CLI with `--format`, `-o`, `--language`, `--resume`
+- [x] 2 API and CLI: `transcribe(...) -> Transcript`, CLI with `--format`, `-o`, `--language`, `--resume`
 - [ ] 3 Tests with a fake server: splitting, offsets across pieces, resume, VTT and SRT, CLI, missing configuration
 - [ ] 4 README, CHANGELOG 0.1.0, local smoke test with a real speech-to-text model
 - [ ] 5 English sweep, acceptance greps

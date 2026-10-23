@@ -38,8 +38,10 @@ def _reject_if_too_long(duration: float, settings: Settings) -> None:
 
 
 def _fail_chunk(index: int, error: Exception) -> ModelError:
-    """One uniform error message for a failed chunk."""
-    return ModelError(f"Chunk {index + 1} transcription failed: {error}")
+    """One uniform error message for a failed chunk. Finished chunks stay in the work folder."""
+    err = ModelError(f"Chunk {index + 1} transcription failed: {error}")
+    err.resumable = True
+    return err
 
 
 def _report(on_progress: ProgressFn, done: int, total: int) -> None:
