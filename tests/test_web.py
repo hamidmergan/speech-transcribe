@@ -262,6 +262,38 @@ def test_an_unexpected_error_ends_the_job_and_frees_the_page(
     assert _wait(client)["state"] == "done"
 
 
+@needs_ffmpeg
+def test_only_one_of_two_uploads_at_the_same_time_is_taken(
+    client, copy_media, monkeypatch
+):
+    """The slot used to be taken only after the upload was written to disk."""
+    import shutil
+    import threading
+
+    original = shutil.copyfileobj
+
+    def slow(src, dst, *args, **kwargs):
+        time.sleep(0.4)
+        return original(src, dst, *args, **kwargs)
+
+    monkeypatch.setattr(shutil, "copyfileobj", slow)
+    path = copy_media("short")
+    answers = []
+
+    def send():
+        answers.append(_upload(client, path).status_code)
+
+    threads = [threading.Thread(target=send) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    monkeypatch.undo()
+    assert sorted(answers) == [200, 409]
+    _wait(client)
+
+
 def test_an_unknown_setting_is_refused(tmp_path):
     from speech_transcribe.errors import ConfigError
 

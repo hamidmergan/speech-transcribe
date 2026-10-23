@@ -186,9 +186,6 @@ def create_app(allowed_hosts: Optional[Sequence[str]] = None, **options) -> Fast
             fmt = normalize_format(response_format)
         except ConfigError as exc:
             raise HTTPException(400, str(exc))
-        with lock:
-            if job.state == "running":
-                raise HTTPException(409, "A recording is being transcribed. Wait until it is done.")
         name = _safe_name(file.filename or "recording")
         if Path(name).suffix.lower() not in MEDIA_EXTENSIONS:
             raise HTTPException(400, f"Only {', '.join(sorted(MEDIA_EXTENSIONS))} allowed")
@@ -197,11 +194,20 @@ def create_app(allowed_hosts: Optional[Sequence[str]] = None, **options) -> Fast
             raise HTTPException(400, "Set the server address and the model first.")
         spoken = language.strip() or str(chosen.pop("language", "") or "")
         chosen.pop("language", None)
-        target = work / name
-        with open(target, "wb") as out:
-            shutil.copyfileobj(file.file, out)
+        # Take the slot before the upload is written. Two tabs that send at the
+        # same second would otherwise both pass the check and overwrite each other.
         with lock:
+            if job.state == "running":
+                raise HTTPException(409, "A recording is being transcribed. Wait until it is done.")
             job.reset(name, fmt)
+        target = work / name
+        try:
+            with open(target, "wb") as out:
+                shutil.copyfileobj(file.file, out)
+        except OSError as exc:
+            with lock:
+                job.state, job.error = "error", f"The upload could not be stored: {exc}"
+            raise HTTPException(500, "The upload could not be stored.")
         threading.Thread(
             target=run, args=(target, fmt, spoken, short_cues, chosen), daemon=True
         ).start()
