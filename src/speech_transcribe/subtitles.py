@@ -8,6 +8,7 @@ MAX_CHARS_PER_LINE = 42
 MAX_LINES_PER_CUE = 2
 
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+_BLANK_LINES = re.compile(r"\n[^\S\n]*\n+")
 
 
 def _split_time(seconds: float):
@@ -30,24 +31,43 @@ def _fmt_srt_time(seconds: float) -> str:
     return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
 
+def _cue_body(text) -> str:
+    """One cue is one block, so a blank line inside the text must not end it."""
+    return _BLANK_LINES.sub("\n", str(text).strip())
+
+
+def escape_vtt(text: str) -> str:
+    """Escape a cue payload for WebVTT, where & and < start markup."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def unescape_vtt(text: str) -> str:
+    """Turn the WebVTT entities back into their characters."""
+    return text.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
+
+
 def segments_to_vtt(segments: List[Dict]) -> str:
     """Convert segments to a WebVTT string."""
     lines: List[str] = ["WEBVTT", ""]
     for i, seg in enumerate(segments, 1):
         lines.append(str(i))
         lines.append(f"{_fmt_vtt_time(seg['start'])} --> {_fmt_vtt_time(seg['end'])}")
-        lines.append(seg["text"])
+        lines.append(escape_vtt(_cue_body(seg["text"])))
         lines.append("")
     return "\n".join(lines)
 
 
 def segments_to_srt(segments: List[Dict]) -> str:
-    """Convert segments to an SRT string."""
+    """Convert segments to an SRT string.
+
+    SRT has no entity syntax, so the text goes in as it is. Only a blank line
+    is removed, because it would end the cue.
+    """
     lines: List[str] = []
     for i, seg in enumerate(segments, 1):
         lines.append(str(i))
         lines.append(f"{_fmt_srt_time(seg['start'])} --> {_fmt_srt_time(seg['end'])}")
-        lines.append(seg["text"])
+        lines.append(_cue_body(seg["text"]))
         lines.append("")
     return "\n".join(lines)
 
@@ -86,7 +106,8 @@ def vtt_to_segments(raw: str) -> List[Dict]:
             text_lines.append(lines[i])
             i += 1
         if text_lines:
-            segments.append({"start": start, "end": end, "text": " ".join(text_lines).strip()})
+            text = unescape_vtt(" ".join(text_lines).strip())
+            segments.append({"start": start, "end": end, "text": text})
         i += 1
     return segments
 

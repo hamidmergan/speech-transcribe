@@ -162,3 +162,36 @@ def test_short_cues_keep_the_total_time():
 def test_short_cues_do_not_change_the_plain_text():
     transcript = Transcript(text=_LONG, segments=[{"start": 0.0, "end": 12.0, "text": _LONG}])
     assert transcript.render("txt") == _LONG
+
+
+# --- what may stand in a cue ------------------------------------------------
+
+
+def test_vtt_escapes_the_markup_characters():
+    """A player reads <b> as a tag and &T as a broken entity."""
+    vtt = segments_to_vtt([{"start": 0.0, "end": 2.0, "text": "R&D at AT&T <b>grew</b>"}])
+    assert "R&amp;D at AT&amp;T &lt;b&gt;grew&lt;/b&gt;" in vtt
+    assert "<b>" not in vtt
+
+
+def test_escaped_cue_text_reads_back_unchanged():
+    raw = "R&D at AT&T <b>grew</b>"
+    segments = [{"start": 0.0, "end": 2.0, "text": raw}]
+    assert vtt_to_segments(segments_to_vtt(segments))[0]["text"] == raw
+
+
+def test_srt_keeps_the_text_as_it_is():
+    """SRT has no entity syntax, an escaped ampersand would show up as text."""
+    srt = segments_to_srt([{"start": 0.0, "end": 2.0, "text": "R&D at AT&T"}])
+    assert "R&D at AT&T" in srt
+
+
+def test_a_blank_line_inside_a_segment_does_not_split_the_cue():
+    """A cue ends at the first blank line, so the text must not contain one."""
+    segments = [
+        {"start": 0.0, "end": 1.0, "text": "line one\n\nline two"},
+        {"start": 1.0, "end": 2.0, "text": "next"},
+    ]
+    for rendered in (segments_to_srt(segments), segments_to_vtt(segments)):
+        assert "line one\nline two" in rendered
+        assert len(vtt_to_segments(rendered)) == 2
