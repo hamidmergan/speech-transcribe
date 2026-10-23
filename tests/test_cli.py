@@ -255,3 +255,17 @@ def test_one_input_with_a_file_name_still_writes_that_file(server, copy_media, t
     target = tmp_path / "named.txt"
     assert main(_args(server, "-o", str(target), str(copy_media("short")))) == 0
     assert target.exists()
+
+
+@needs_ffmpeg
+def test_an_empty_part_is_reported(server, copy_media, capsys, monkeypatch):
+    """A gap in the middle of a transcript used to leave no trace at all."""
+    from speech_transcribe import pipeline
+
+    monkeypatch.setattr(pipeline, "get_audio_duration", lambda p: 2000.0)
+    monkeypatch.setattr(pipeline, "find_silence_starts", lambda p: [])
+    monkeypatch.setattr(pipeline, "compute_split_points", lambda d, s, c: [1000.0])
+    server.empty_on = {2}
+    code = main(_args(server, "--stdout", "--concurrency", "1", str(copy_media("short"))))
+    assert code == 0
+    assert "came back empty" in capsys.readouterr().err

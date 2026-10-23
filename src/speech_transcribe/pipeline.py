@@ -28,6 +28,7 @@ class RawResult:
     text: str
     chunks: int = 1
     resumed: int = 0
+    empty_chunks: int = 0
     extra: Dict = field(default_factory=dict)
 
 
@@ -169,21 +170,28 @@ def _transcribe(
     all_segments: List[Dict] = []
     texts: List[str] = []
     first_lang = ""
+    empty = 0
     for i in range(total):
         (segs, lang, text), offset = results[i]
         if i == 0:
             first_lang = lang
+        if not segs and not text:
+            # A chunk that answers with nothing leaves a silent gap in the transcript.
+            empty += 1
+            logger.warning("Chunk %d/%d came back empty, that part is missing", i + 1, total)
         all_segments.extend(_shift(segs, offset))
         if text:
             texts.append(text)
 
     cache.clear()
-    return _finish(all_segments, duration, first_lang, " ".join(texts).strip(), total, resumed)
+    return _finish(
+        all_segments, duration, first_lang, " ".join(texts).strip(), total, resumed, empty
+    )
 
 
-def _finish(segs, duration, lang, text, chunks, resumed) -> RawResult:
+def _finish(segs, duration, lang, text, chunks, resumed, empty=0) -> RawResult:
     if not segs and not text:
         raise ModelError("The server returned no segments for this audio or video file.")
     if not text:
         text = " ".join(s["text"] for s in segs).strip()
-    return RawResult(segs, duration, lang, text, chunks, resumed)
+    return RawResult(segs, duration, lang, text, chunks, resumed, empty)

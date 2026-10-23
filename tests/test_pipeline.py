@@ -388,3 +388,19 @@ def test_a_fragmented_mp4_is_remuxed_before_probing(
 
     assert probed == [str(copy)]
     assert not copy.exists()
+
+
+# --- a chunk that answers with nothing --------------------------------------
+
+
+def test_an_empty_chunk_is_counted(server, tmp_path, recording, four_chunks):
+    """A chunk with an empty 200 leaves a gap, the run must not stay silent."""
+    server.empty_on = {2}
+    result = _run(server, tmp_path, recording)
+    assert result.empty_chunks == 1
+    assert result.chunks == CHUNKS
+    assert len(result.segments) == (CHUNKS - 1) * 2
+
+
+def test_a_full_run_counts_no_empty_chunk(server, tmp_path, recording, four_chunks):
+    assert _run(server, tmp_path, recording).empty_chunks == 0

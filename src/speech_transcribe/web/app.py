@@ -224,6 +224,7 @@ def create_app(allowed_hosts: Optional[Sequence[str]] = None, **options) -> Fast
                     language=job.transcript.language,
                     duration=job.transcript.duration,
                     chunks=job.transcript.chunks,
+                    empty_chunks=job.transcript.empty_chunks,
                     text=job.text,
                 )
             return answer

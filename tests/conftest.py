@@ -28,6 +28,7 @@ class FakeServer:
         self.fail_on = set()  # request numbers (1-based) that fail with 400
         self.status_on_fail = 400
         self.no_segments = False
+        self.empty_on = set()  # request numbers that answer 200 with nothing in it
         self.lock = threading.Lock()
         outer = self
 
@@ -64,12 +65,13 @@ class FakeServer:
                     {"id": 1, "start": 5.0, "end": 6.0, "text": " second "},
                     {"id": 2, "start": 6.0, "end": 6.5, "text": "   "},
                 ]
+                empty = n in outer.empty_on
                 payload = {
                     "task": "transcribe",
                     "language": language,
                     "duration": 7.0,
-                    "text": f"request {n} second",
-                    "segments": [] if outer.no_segments else segments,
+                    "text": "" if empty else f"request {n} second",
+                    "segments": [] if empty or outer.no_segments else segments,
                 }
                 data = json.dumps(payload).encode()
                 self.send_response(200)

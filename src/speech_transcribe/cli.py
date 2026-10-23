@@ -183,6 +183,12 @@ def main(argv: Optional[List[str]] = None) -> int:
             print(f"Error for {key}: {exc}", file=sys.stderr)
             continue
 
+        if transcript.empty_chunks:
+            print(
+                f"Warning for {key}: {transcript.empty_chunks} of {transcript.chunks} parts "
+                "came back empty, the transcript has gaps. Try again with --resume.",
+                file=sys.stderr,
+            )
         result = transcript.render(fmt, short_cues=args.short_cues)
         if args.stdout:
             if many:

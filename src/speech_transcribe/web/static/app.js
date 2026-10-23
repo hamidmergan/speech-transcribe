@@ -94,6 +94,9 @@ function describe(job) {
     parts.push(`Length ${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`);
   }
   if (job.chunks > 1) parts.push(`${job.chunks} parts`);
+  if (job.empty_chunks > 0) {
+    parts.push(`${job.empty_chunks} parts came back empty, the text has gaps`);
+  }
   return parts.join(" . ");
 }
 

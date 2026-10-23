@@ -38,6 +38,7 @@ class Transcript:
     format: str = "txt"
     chunks: int = 1
     resumed_chunks: int = 0
+    empty_chunks: int = 0  # pieces the server answered with nothing, a gap in the text
 
     def _cues(self, short_cues: bool) -> List[Dict]:
         return split_long_segments(self.segments) if short_cues else self.segments
@@ -170,6 +171,7 @@ def _transcribe(
         format=fmt,
         chunks=raw.chunks,
         resumed_chunks=raw.resumed,
+        empty_chunks=raw.empty_chunks,
     )
 
 
