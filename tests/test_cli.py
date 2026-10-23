@@ -223,10 +223,35 @@ def test_an_unexpected_error_is_printed_as_a_message(server, copy_media, capsys,
 
 @needs_ffmpeg
 def test_an_unwritable_output_is_reported(server, copy_media, capsys, tmp_path):
-    """-o pointing at an existing folder used to crash after the model was paid for."""
-    blocked = tmp_path / "blocked"
-    blocked.mkdir()
-    (blocked / "short.txt").mkdir()
-    code = main(_args(server, "-o", str(blocked / "short.txt"), str(copy_media("short"))))
+    """A target that cannot be written must not end in a traceback."""
+    plain = tmp_path / "plain.txt"
+    plain.write_text("not a folder", encoding="utf-8")
+    code = main(_args(server, "-o", str(plain / "short.txt"), str(copy_media("short"))))
     assert code == 1
     assert "Could not write" in capsys.readouterr().err
+
+
+# --- -o with one input ------------------------------------------------------
+
+
+@needs_ffmpeg
+def test_one_input_with_an_existing_folder_writes_into_it(server, copy_media, tmp_path):
+    """-o outdir used to crash with IsADirectoryError after the model was paid for."""
+    folder = tmp_path / "outdir"
+    folder.mkdir()
+    assert main(_args(server, "-o", str(folder), str(copy_media("short")))) == 0
+    assert (folder / "short.txt").read_text(encoding="utf-8").strip()
+
+
+@needs_ffmpeg
+def test_one_input_with_a_trailing_separator_makes_the_folder(server, copy_media, tmp_path):
+    folder = tmp_path / "fresh"
+    assert main(_args(server, "-o", f"{folder}/", str(copy_media("short")))) == 0
+    assert (folder / "short.txt").exists()
+
+
+@needs_ffmpeg
+def test_one_input_with_a_file_name_still_writes_that_file(server, copy_media, tmp_path):
+    target = tmp_path / "named.txt"
+    assert main(_args(server, "-o", str(target), str(copy_media("short")))) == 0
+    assert target.exists()

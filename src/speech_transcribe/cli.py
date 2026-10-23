@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 from pathlib import Path
 from typing import List, Optional
@@ -132,9 +133,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     if many and out is not None and out.exists() and not out.is_dir():
         print("With several files, -o must be a folder.", file=sys.stderr)
         return 2
+    # -o is a folder for several inputs, and for one input when it names a
+    # folder: an existing one, or a path written with a trailing separator.
+    out_is_folder = out is not None and (
+        many or out.is_dir() or args.output.endswith(("/", os.sep))
+    )
 
-    targets = _targets(args.files, fmt, out if many else None)
-    if many and out is not None:
+    targets = _targets(args.files, fmt, out if out_is_folder else None)
+    if out_is_folder:
         out.mkdir(parents=True, exist_ok=True)
 
     failed = 0
@@ -186,7 +192,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 print()
             continue
         # an explicitly named output file is overwritten, generated names never are
-        target = out if (out is not None and not many) else _free(targets[key])
+        target = _free(targets[key]) if out_is_folder or out is None else out
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(result if result.endswith("\n") else result + "\n", encoding="utf-8")
