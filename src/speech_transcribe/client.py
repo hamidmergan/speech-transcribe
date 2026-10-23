@@ -20,22 +20,19 @@ CONNECT_TIMEOUT_SECONDS = 10.0
 def _timeout(read_seconds: float):
     """A short connect timeout with a long read timeout, uploads may take a while.
 
-    The HTTP library ships with the openai package and has changed its name
-    between major versions, so fall back to a plain read timeout if neither
-    spelling is importable.
+    openai re-exports the Timeout class of the HTTP library it ships with, so
+    the right class comes from openai itself instead of a guessed module name.
+    A plain number would set all four fields at once and stretch the connect
+    guard to the read timeout.
     """
-    for module_name in ("httpx", "httpx2"):
-        try:
-            module = __import__(module_name)
-        except ImportError:
-            continue
-        return module.Timeout(
-            connect=CONNECT_TIMEOUT_SECONDS,
-            read=read_seconds,
-            write=CONNECT_TIMEOUT_SECONDS,
-            pool=CONNECT_TIMEOUT_SECONDS,
-        )
-    return read_seconds
+    from openai import Timeout
+
+    return Timeout(
+        connect=CONNECT_TIMEOUT_SECONDS,
+        read=read_seconds,
+        write=CONNECT_TIMEOUT_SECONDS,
+        pool=CONNECT_TIMEOUT_SECONDS,
+    )
 
 
 def make_client(settings: Settings):

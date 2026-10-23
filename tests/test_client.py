@@ -167,6 +167,25 @@ def test_a_plain_text_answer_keeps_its_text(settings, audio):
     assert (segments, language, text) == ([], "", "Good morning")
 
 
-def test_a_timeout_is_set_on_the_client(settings):
+def test_all_four_timeout_fields_are_set(settings):
+    """A plain number would set all four fields at once and lose the connect guard."""
     timeout = stt._timeout(settings.timeout)
-    assert getattr(timeout, "read", timeout) == settings.timeout
+    assert (timeout.connect, timeout.read, timeout.write, timeout.pool) == (
+        stt.CONNECT_TIMEOUT_SECONDS,
+        settings.timeout,
+        stt.CONNECT_TIMEOUT_SECONDS,
+        stt.CONNECT_TIMEOUT_SECONDS,
+    )
+
+
+def test_the_client_carries_the_timeout_as_numbers(settings):
+    """The class has to be the one the openai package itself uses."""
+    from openai import Timeout
+
+    client = stt.make_client(settings)
+    assert isinstance(client.timeout, Timeout)
+    assert client.timeout.connect == stt.CONNECT_TIMEOUT_SECONDS
+    assert client.timeout.read == settings.timeout
+    # A Timeout object from another HTTP library gets wrapped field by field,
+    # which makes every later repr of the inner client raise.
+    assert "connect=10.0" in repr(client._client.timeout)
