@@ -73,7 +73,17 @@ def test_client_side_status_codes_are_permanent(status):
 
 @pytest.mark.parametrize(
     "message",
-    ["Read timeout", "Connection refused", "Service Unavailable", "rate limit reached"],
+    [
+        "Read timeout",
+        "Connection refused",
+        "Service Unavailable",
+        "rate limit reached",
+        "Internal Server Error",
+        "Bad Gateway",
+        "Gateway Timeout",
+        "The model is temporarily overloaded",
+        "Error code: 429 - too many requests",
+    ],
 )
 def test_known_wordings_are_temporary(message):
     assert stt.is_transient_error(RuntimeError(message)) is True
