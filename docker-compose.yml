@@ -2,7 +2,8 @@ services:
   speech-transcribe:
     build: .
     ports:
-      - "8000:8000"
+      # this computer only, the page has no login
+      - "127.0.0.1:${SPEECH_TRANSCRIBE_PORT:-8000}:8000"
     environment:
       # Required. A server with an OpenAI-compatible API and a speech-to-text model.
       # host.docker.internal reaches a server running on the machine that starts the container.
